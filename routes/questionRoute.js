@@ -9,6 +9,7 @@ import {
   getQuestionById,
   getQuestions,
   updateQuestion,
+  duplicateQuestions
 } from "../controller/questionController.js";
 const router = express.Router();
 
@@ -20,9 +21,15 @@ router.post(
   createMultipleQuestions
 );
 
+router.post("/questions/duplicate/:fromExamId/:toExamId", duplicateQuestions);
+
+
 // Retrieve questions for a specific exam
 router.get("/questions/:examId", authenticateUser, getQuestions);
-router.get("/:questionId", getQuestionById);
+
+// Retrieve a single question
+router.get("/single/:questionId", getQuestionById);
+
 
 // Delete a question by ID
 router.delete("/questions/:questionId", authenticateUser, deleteQuestion);

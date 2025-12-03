@@ -1,50 +1,138 @@
 import Question from "../models/questionModel.js";
 
 // Create a new question
+// export const createQuestion = async (req, res) => {
+//   const { sessionId } = req.params;
+
+//   try {
+//     const {
+//       questionType,
+//       questionTitle,
+//       options,
+//       correctAnswer,
+//       possibleAnswers,
+//       mark,
+//       examId,
+//       onscreenMarking,
+//     } = req.body;
+
+//     let questionData = {
+//       questionType,
+//       questionTitle,
+//       mark,
+//       exam: examId,
+//       session: sessionId,
+//     };
+
+//     if (questionType === "multiple_choice") {
+//       // For multiple-choice questions
+//       questionData.options = options.map((option) => ({
+//         option: option.option,
+//         isCorrect: option.isCorrect,
+//       }));
+//     } else if (questionType === "true_false") {
+//       // For True/False questions
+//       questionData.correctAnswer = correctAnswer;
+//     } else if (questionType === "fill_in_the_blanks") {
+//       // For Fill In The Blanks questions
+//       questionData.possibleAnswers = possibleAnswers;
+//     } else if (questionType === "theory") {
+//       // For Theory questions
+//       questionData.onscreenMarking = onscreenMarking;
+//     }
+//     const question = new Question(questionData);
+
+//     await question.save();
+//     res.json({ message: "Question saved successfully" });
+//   } catch {
+//     res.status(500).json({ error: "Internal server error" });
+//   }
+// };
+
+// Create a new question (single or multiple)
 export const createQuestion = async (req, res) => {
   const { sessionId } = req.params;
 
   try {
-    const {
-      questionType,
-      questionTitle,
-      options,
-      correctAnswer,
-      possibleAnswers,
-      mark,
-      examId,
-      onscreenMarking,
-    } = req.body;
+    // Ensure we always work with an array
+    const questions = Array.isArray(req.body) ? req.body : [req.body];
 
-    let questionData = {
-      questionType,
-      questionTitle,
-      mark,
-      exam: examId,
-      session: sessionId,
-    };
+    for (const q of questions) {
+      const {
+        questionType,
+        questionTitle,
+        options,
+        correctAnswer,
+        possibleAnswers,
+        mark,
+        examId,
+        onscreenMarking,
+      } = q;
 
-    if (questionType === "multiple_choice") {
-      // For multiple-choice questions
-      questionData.options = options.map((option) => ({
-        option: option.option,
-        isCorrect: option.isCorrect,
-      }));
-    } else if (questionType === "true_false") {
-      // For True/False questions
-      questionData.correctAnswer = correctAnswer;
-    } else if (questionType === "fill_in_the_blanks") {
-      // For Fill In The Blanks questions
-      questionData.possibleAnswers = possibleAnswers;
-    } else if (questionType === "theory") {
-      // For Theory questions
-      questionData.onscreenMarking = onscreenMarking;
+      let questionData = {
+        questionType,
+        questionTitle,
+        mark,
+        exam: examId,
+        session: sessionId,
+      };
+
+      if (questionType === "multiple_choice") {
+        questionData.options = options.map(option => ({
+          option: option.option,
+          isCorrect: option.isCorrect,
+        }));
+      } 
+      else if (questionType === "true_false") {
+        questionData.correctAnswer = correctAnswer;
+      } 
+      else if (questionType === "fill_in_the_blanks") {
+        questionData.possibleAnswers = possibleAnswers;
+      } 
+      else if (questionType === "theory") {
+        questionData.onscreenMarking = onscreenMarking;
+      }
+
+      // Save each question
+      const question = new Question(questionData);
+      await question.save();
     }
-    const question = new Question(questionData);
 
-    await question.save();
-    res.json({ message: "Question saved successfully" });
-  } catch {
+    res.json({ message: "Questions saved successfully" });
+
+  } catch (err) {
+    console.error("Error saving questions:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+export const duplicateQuestions = async (req, res) => {
+  try {
+    const { fromExamId, toExamId } = req.params;
+
+    // Get all questions from source exam
+    const originalQuestions = await Question.find({ exam: fromExamId });
+    if (originalQuestions.length === 0) {
+      return res.status(404).json({ message: "No questions found to duplicate" });
+    }
+
+    // Duplicate each question
+    const duplicated = originalQuestions.map(q => {
+      const newQ = q.toObject();
+      delete newQ._id; // remove old ID
+      newQ.exam = toExamId; // assign new exam ID
+      return newQ;
+    });
+
+    // Insert duplicated questions
+    await Question.insertMany(duplicated);
+
+    res.json({
+      message: "Questions duplicated successfully",
+      count: duplicated.length,
+    });
+
+  } catch (err) {
+    console.error("Error duplicating questions:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 };
