@@ -50,6 +50,8 @@ const s3 = new S3({
 
 const corsOptions = {
   origin: [
+    "http://localhost:3001",
+    "http://localhost:3000",
     "http://localhost:3002",
     "https://hlhs.edupro.com.ng",
     "https://cbt.edupro.com.ng",
@@ -133,9 +135,7 @@ app.use("/api/", subRoute);
 app.use("/api/", questionRoute);
 app.use("/api/", jambquestionRoute);
 app.use("/api/", examRoute);
-
 app.use("/api/", psyRoute);
-
 app.use("/api/", practicePqRoutes);
 
 const PORT = process.env.PORT || 5001;

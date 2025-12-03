@@ -11,76 +11,57 @@ import bcrypt from "bcryptjs";
 import Download from "../models/downloadModel.js";
 import Subject from "../models/subModel.js";
 import Exam from "../models/examModel.js";
+
 // export const register = async (req, res) => {
 //   try {
-//     const { role, ...userData } = req.body; // Capture role and user data
+//     const { role, sessionId, ...userData } = req.body; // Capture session ID
+//     const { email, username, password } = userData;
+//     console.log("Received registration data:", { role, sessionId, userData });
 
 //     if (!["admin", "teacher", "parent", "student"].includes(role)) {
 //       return res.status(400).json({ error: "Invalid role" });
 //     }
-//     const hashedPassword = await bcrypt.hash(userData.password, 10);
+//     const existingUser = await User.findOne({
+//       $or: [{ email: email }, { username: username }],
+//     }).exec();
 
-//     // const user = new User({ role, ...userData });
-//     const user = new User({ role, ...userData, password: hashedPassword });
+//     if (existingUser) {
+//       if (existingUser.username === username) {
+//         return res.status(400).json({ error: "Username already exists" });
+//       } else if (existingUser.email === email) {
+//         return res.status(400).json({ error: "Email already exists" });
+//       }
+//     }
+
+//     const session = await Session.findById(sessionId);
+//     if (!session) {
+//       return res.status(400).json({ error: "Invalid session ID" });
+//     }
+
+//     const hashedPassword = await bcrypt.hash(userData.password, 10);
+//     // const hashedPassword = await bcrypt.hash(password, 10);
+
+//     const user = new User({
+//       role,
+//       ...userData,
+//       password: hashedPassword,
+//       session: sessionId, // Associate with the session
+//     });
+
 //     await user.save();
 
-//     const token = jwt.sign({ user, role: user.role }, process.env.JWT_SECRET);
+//     const token = jwt.sign(
+//       { userId: user._id, role: user.role },
+//       process.env.JWT_SECRET,
+//       { expiresIn: "1h" } // Token expires in 1 hour
+//     );
 
 //     return res.status(201).json({ token, user });
-//   } catch {
+//   } catch (error) {
+//     console.error("Registration error:", error);
 //     return res.status(500).json({ error: "Registration failed" });
 //   }
 // };
-export const register = async (req, res) => {
-  try {
-    const { role, sessionId, ...userData } = req.body; // Capture session ID
-    const { email, username, password } = userData;
-    console.log("Received registration data:", { role, sessionId, userData });
-
-    if (!["admin", "teacher", "parent", "student"].includes(role)) {
-      return res.status(400).json({ error: "Invalid role" });
-    }
-    const existingUser = await User.findOne({
-      $or: [{ email: email }, { username: username }],
-    }).exec();
-
-    if (existingUser) {
-      if (existingUser.username === username) {
-        return res.status(400).json({ error: "Username already exists" });
-      } else if (existingUser.email === email) {
-        return res.status(400).json({ error: "Email already exists" });
-      }
-    }
-
-    const session = await Session.findById(sessionId);
-    if (!session) {
-      return res.status(400).json({ error: "Invalid session ID" });
-    }
-
-    const hashedPassword = await bcrypt.hash(userData.password, 10);
-    // const hashedPassword = await bcrypt.hash(password, 10);
-
-    const user = new User({
-      role,
-      ...userData,
-      password: hashedPassword,
-      session: sessionId, // Associate with the session
-    });
-
-    await user.save();
-
-    const token = jwt.sign(
-      { userId: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "1h" } // Token expires in 1 hour
-    );
-
-    return res.status(201).json({ token, user });
-  } catch (error) {
-    console.error("Registration error:", error);
-    return res.status(500).json({ error: "Registration failed" });
-  }
-};
 // export const getUserByRole = async (req, res) => {
 //   const role = req.params.role;
 
@@ -97,6 +78,57 @@ export const register = async (req, res) => {
 //     return res.status(500).json({ error: "Failed to get users" });
 //   }
 // };
+
+
+export const register = async (req, res) => {
+  try {
+    const { role, sessionId, ...userData } = req.body;
+    const { email, username, password } = userData;
+
+    console.log("Received registration data:", { role, sessionId, userData });
+
+    if (!["admin", "teacher", "parent", "student"].includes(role)) {
+      return res.status(400).json({ error: "Invalid role" });
+    }
+
+    // Only enforce unique username
+    const existingUser = await User.findOne({ username }).exec();
+
+    if (existingUser) {
+      return res.status(400).json({ error: "Username already exists" });
+    }
+
+    // Validate session
+    const session = await Session.findById(sessionId);
+    if (!session) {
+      return res.status(400).json({ error: "Invalid session ID" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = new User({
+      role,
+      ...userData,
+      password: hashedPassword,
+      session: sessionId,
+    });
+
+    await user.save();
+
+    const token = jwt.sign(
+      { userId: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+
+    return res.status(201).json({ token, user });
+  } catch (error) {
+    console.error("Registration error:", error);
+    return res.status(500).json({ error: "Registration failed" });
+  }
+};
+
+
 export const getUserByRole = async (req, res) => {
   const { role, sessionId } = req.params;
 
@@ -1108,7 +1140,136 @@ export const getAccountSetting = async (req, res) => {
 //   }
 // };
 
-export const createAccount = async (req, res, s3) => {
+// export const createAccount = async (req, res, s3) => {
+//   try {
+//     const {
+//       name,
+//       motto,
+//       address,
+//       phone,
+//       phonetwo,
+//       currency,
+//       email,
+//       sessionStart,
+//       sessionEnd,
+//     } = req.body;
+
+//     console.log("Received request body:", req.body);
+
+//     // Check if school profile exists, create if not
+//     let school = await Account.findOne();
+//     if (!school) {
+//       school = new Account();
+//     }
+
+//     school.name = name;
+//     school.motto = motto;
+//     school.address = address;
+//     school.phone = phone;
+//     school.phonetwo = phonetwo;
+//     school.currency = currency;
+//     school.email = email;
+//     school.sessionStart = sessionStart;
+//     school.sessionEnd = sessionEnd;
+// if (req.file) {
+//   console.log("Received file:", req.file);
+
+//   const uploadParams = {
+//     Bucket: "edupros",
+//     Key: `${Date.now()}-${req.file.originalname}`,
+//     Body: req.file.buffer,
+//     ACL: "public-read",
+//     ContentType: req.file.mimetype,
+//   };
+
+//   console.log("Upload Parameters:", uploadParams);
+
+//   // Use the correct promise-based call
+//   const result = await s3.putObject(uploadParams).promise();
+
+//   console.log("S3 Upload Result:", result);
+
+//   // Construct the full public URL manually
+//   const fileUrl = `https://${uploadParams.Bucket}.s3.amazonaws.com/${uploadParams.Key}`;
+//   console.log("File uploaded successfully:", fileUrl);
+
+//   school.schoolLogo = fileUrl;
+// }
+
+
+//     await school.save();
+//     console.log("Updated School Profile:", school);
+
+//     // Add this console log to see the data in the database
+//     const updatedSchool = await Account.findOne();
+//     console.log("Data in the database:", updatedSchool);
+
+//     res
+//       .status(200)
+//       .json({ success: true, message: "School profile updated successfully" });
+//   } catch (error) {
+//   console.error("Error in createAccount:", error);
+//   res.status(500).json({ success: false, message: error.message });
+// }
+
+// };
+
+// export const createAccount = async (req, res) => {
+//   try {
+//     const {
+//       name,
+//       motto,
+//       address,
+//       phone,
+//       phonetwo,
+//       currency,
+//       email,
+//       sessionStart,
+//       sessionEnd,
+//     } = req.body;
+
+//     console.log("Received request body:", req.body);
+
+//     // Check if school profile exists, create if not
+//     let school = await Account.findOne();
+//     if (!school) {
+//       school = new Account();
+//     }
+
+//     // Assign fields
+//     school.name = name;
+//     school.motto = motto;
+//     school.address = address;
+//     school.phone = phone;
+//     school.phonetwo = phonetwo;
+//     school.currency = currency;
+//     school.email = email;
+//     school.sessionStart = sessionStart;
+//     school.sessionEnd = sessionEnd;
+
+//     // If a file was uploaded, multer-s3 already handled the upload
+//     if (req.file) {
+//       console.log("Received file:", req.file);
+//       // req.file.location already contains the S3 URL
+//       school.schoolLogo = req.file.location;
+//       console.log("File uploaded successfully:", req.file.location);
+//     }
+
+//     await school.save();
+//     console.log("Updated School Profile:", school);
+
+//     res.status(200).json({
+//       success: true,
+//       message: "School profile updated successfully",
+//       data: school,
+//     });
+//   } catch (error) {
+//     console.error("Error in createAccount:", error);
+//     res.status(500).json({ success: false, message: error.message });
+//   }
+// };
+
+export const createAccount = async (req, res) => {
   try {
     const {
       name,
@@ -1122,7 +1283,16 @@ export const createAccount = async (req, res, s3) => {
       sessionEnd,
     } = req.body;
 
+    // 🔹 Important: session might come as a string from FormData
+    const session = req.body.session;
     console.log("Received request body:", req.body);
+    console.log("Received session:", session);
+
+    if (!session) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Session ID is required" });
+    }
 
     // Check if school profile exists, create if not
     let school = await Account.findOne();
@@ -1130,6 +1300,7 @@ export const createAccount = async (req, res, s3) => {
       school = new Account();
     }
 
+    // Assign fields
     school.name = name;
     school.motto = motto;
     school.address = address;
@@ -1139,46 +1310,26 @@ export const createAccount = async (req, res, s3) => {
     school.email = email;
     school.sessionStart = sessionStart;
     school.sessionEnd = sessionEnd;
+    school.session = session; // ✅ assign session here
 
+    // If a file was uploaded, multer-s3 already handled the upload
     if (req.file) {
       console.log("Received file:", req.file);
-
-      // Add this function to handle the actual S3 upload
-      const uploadParams = {
-        Bucket: "edupros", // Replace with your bucket name
-        Key: `${Date.now()}-${req.file.originalname}`,
-        Body: req.file.buffer,
-        ACL: "public-read",
-        ContentType: req.file.mimetype,
-      };
-
-      console.log("Upload Parameters:", uploadParams);
-
-      // Use the putObject method
-      const result = await s3.putObject(uploadParams);
-      console.log("S3 Upload Result:", result);
-
-      console.log("File uploaded successfully:", result.Location);
-      if (result && result.ETag) {
-        school.schoolLogo = uploadParams.Key;
-        console.log("File URL:", school.schoolLogo);
-      } else {
-        console.error("Error uploading file to S3:", result);
-      }
+      school.schoolLogo = req.file.location;
+      console.log("File uploaded successfully:", req.file.location);
     }
 
     await school.save();
     console.log("Updated School Profile:", school);
 
-    // Add this console log to see the data in the database
-    const updatedSchool = await Account.findOne();
-    console.log("Data in the database:", updatedSchool);
-
-    res
-      .status(200)
-      .json({ success: true, message: "School profile updated successfully" });
-  } catch {
-    res.status(500).json({ success: false, message: "Internal server error" });
+    res.status(200).json({
+      success: true,
+      message: "School profile updated successfully",
+      data: school,
+    });
+  } catch (error) {
+    console.error("Error in createAccount:", error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -1701,6 +1852,61 @@ export const addAnotherSessionToUserWithSession = async (req, res) => {
     });
   } catch (error) {
     console.error(error); // Log error for debugging
+    res.status(500).json({ error: "Server Error" });
+  }
+};
+export const promoteStudents = async (req, res) => {
+  try {
+    const { fromSessionId, toSessionId, classPromotions } = req.body;
+
+    // Validate sessions
+    const fromSession = await Session.findById(fromSessionId);
+    const toSession = await Session.findById(toSessionId);
+    if (!fromSession || !toSession) {
+      return res.status(400).json({ error: "Invalid session ID(s)" });
+    }
+
+    // Find all students in the fromSession
+    const students = await User.find({ session: fromSessionId });
+    if (students.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No students found in the provided session." });
+    }
+
+    let promotedCount = 0;
+
+    for (const student of students) {
+      const currentClassName = student.classname;
+
+      // Get next class name based on promotion mapping
+      const nextClassName = classPromotions[currentClassName];
+      if (!nextClassName) continue; // Skip if no mapping found
+
+      // Keep promotion history
+      if (!student.promotionHistory) student.promotionHistory = [];
+      student.promotionHistory.push({
+        fromClass: currentClassName,
+        toClass: nextClassName,
+        fromSession: fromSessionId,
+        toSession: toSessionId,
+        promotedAt: new Date(),
+      });
+
+      // Update class and session
+      student.classname = nextClassName;
+      student.session = toSessionId;
+
+      await student.save();
+      promotedCount++;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `${promotedCount} students promoted from ${fromSession.name} to ${toSession.name}.`,
+    });
+  } catch (error) {
+    console.error("Promotion Error:", error);
     res.status(500).json({ error: "Server Error" });
   }
 };
