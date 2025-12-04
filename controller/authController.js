@@ -118,7 +118,7 @@ export const register = async (req, res) => {
     const token = jwt.sign(
       { userId: user._id, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: "1h" }
+      // { expiresIn: "1h" }
     );
 
     return res.status(201).json({ token, user });
@@ -254,7 +254,7 @@ export const login = async (req, res) => {
 
     // Generate a token if the password is correct
     const token = jwt.sign({ user, role }, process.env.JWT_SECRET, {
-      expiresIn: "1h",
+      // expiresIn: "1h",
     });
 
     return res.status(200).json({ token, user });
