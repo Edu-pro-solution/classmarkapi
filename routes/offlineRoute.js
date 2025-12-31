@@ -62,6 +62,7 @@ import {
   saveMark,
   updateMark,
   updateMarks,
+  getAllScoresForExamSession
 } from "../controller/offMarkController.js";
 
 const router = express.Router();
@@ -90,6 +91,8 @@ router.get(
   "/get-all-scores/:examId/:subjectId/:sessionId",
   getScores
 );
+router.get("/get-all-scored/:examId/:sessionId/:classname", getAllScoresForExamSession);
+
 router.put("/update-all-marks", updateMarks);
 
 router.put("/update-marks/:studentId", updateMark);

@@ -45,11 +45,14 @@ import authenticateUser from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// New route to get students by class
+// Get all students by class
 router.get("/students/:classname", getStudentsByClass);
+
+// Get students by session + class
 router.get("/students/:sessionId/:classname", getStudentsByClassAndSession);
 
-// Change the route pattern for getStudentById
+// Get single student by ID
 router.get("/student/:id", authenticateUser, getStudentById);
+
 
 export default router;
