@@ -172,19 +172,61 @@
   {
     "pin": "ORVWXG859Q",
     "serial": "578170868861274",
-    "used": false,
+    "used": true,
     "createdAt": 1767696161139
   },
   {
     "pin": "LHSULWL2KI",
     "serial": "469235474960688",
-    "used": false,
+    "used": true,
     "createdAt": 1767696161139
   },
   {
     "pin": "R7W8D9CE32",
     "serial": "405611762984418",
-    "used": false,
+    "used": true,
     "createdAt": 1767696161139
+  },
+  {
+    "pin": "G9BAZBMZQ9",
+    "serial": "896900724114396",
+    "used": true,
+    "createdAt": 1767697711655
+  },
+  {
+    "pin": "GZS3RNE0UM",
+    "serial": "678336972114356",
+    "used": false,
+    "createdAt": 1767697711655
+  },
+  {
+    "pin": "04ONMQO10G",
+    "serial": "862611140162868",
+    "used": false,
+    "createdAt": 1767697711655
+  },
+  {
+    "pin": "QRCMPLG4PT",
+    "serial": "837887214934739",
+    "used": false,
+    "createdAt": 1767697711655
+  },
+  {
+    "pin": "YXC2LHTSVA",
+    "serial": "614110110430816",
+    "used": true,
+    "createdAt": 1767697711655
+  },
+  {
+    "pin": "V3XPVLAW9D",
+    "serial": "986909812295755",
+    "used": true,
+    "createdAt": 1767697711655
+  },
+  {
+    "pin": "LVGCG7TMIZ",
+    "serial": "753542100921986",
+    "used": false,
+    "createdAt": 1767697711655
   }
 ]
