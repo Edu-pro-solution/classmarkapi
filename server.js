@@ -9,6 +9,7 @@ import aiRoute from "./routes/aiRoute.js";
 import examlistRoute from "./routes/examlistRoute.js";
 import jambRoute from "./routes/jambRoute.js";
 import gradeRoute from "./routes/gradeRoute.js";
+import pinRoute from "./routes/pinRoute.js";
 import catRoute from "./routes/catRoute.js";
 import stuRoute from "./routes/stuRoute.js";
 import FibroidRoute from "./routes/FibroidRoute.js";
@@ -53,6 +54,7 @@ const corsOptions = {
     "http://localhost:3001",
     "http://localhost:3000",
     "http://localhost:3002",
+    "http://localhost:3003",
     "https://hlhs.edupro.com.ng",
     "https://cbt.edupro.com.ng",
     "https://edupro.com.ng",
@@ -118,6 +120,7 @@ app.use("/api/", receiptRoute);
 
 app.use("/api/", receiptRoute);
 app.use("/api/", aiRoute);
+app.use("/api/", pinRoute);
 app.use("/api/", jambsubmitRoute);
 app.use("/api/divine", FibroidRoute);
 app.use("/api/", classRoute);
