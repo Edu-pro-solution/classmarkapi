@@ -8,70 +8,64 @@ const oauth2Client = new OAuth2Client(
   process.env.GOOGLE_AUTH_REDIRECT_URI
 );
 
-export const signUp = async (req, res, next) => {
+export const signUp = async (req, res) => {
   const { fullname, username, email, phone, password } = req.body;
 
-  console.log("Received signup request:", req.body);
-
   if (!fullname || !email || !password) {
-    console.log("Missing required fields");
-    return res
-      .status(400)
-      .json({ message: "Fullname, email, and password are required" });
+    return res.status(400).json({
+      success: false,
+      message: "Fullname, email, and password are required",
+    });
   }
 
   try {
-    let user = await Auth.findOne({ email });
-    console.log("Checking if user exists:", user);
-
-    if (!user) {
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(password, salt);
-      console.log("Hashed password:", hashedPassword);
-
-      user = new Auth({
-        fullname,
-        username,
-        phone,
-        email,
-        password: hashedPassword,
+    const existingUser = await Auth.findOne({ email });
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        message: "User already exists",
       });
-
-      console.log("New user object before saving:", user);
-
-      // Generate JWT tokens
-      const token = jwt.sign(
-        { _id: user._id, isAdmin: user.isAdmin },
-        process.env.JWT_SECRET,
-        { expiresIn: "1h" }
-      );
-      const refreshToken = jwt.sign(
-        { _id: user._id, isAdmin: user.isAdmin },
-        process.env.JWT_SECRET,
-        { expiresIn: "7d" }
-      );
-
-      // Store tokens in the DB
-      user.accessToken = token;
-      user.refreshToken = refreshToken;
-
-      const savedUser = await user.save();
-      console.log("User saved successfully:", savedUser);
-
-      res.status(201).json({
-        success: true,
-        message: "Registration successful",
-        user: savedUser,
-        token: savedUser.accessToken,
-        refreshToken: savedUser.refreshToken,
-      });
-    } else {
-      console.log("User already exists");
-      res.status(400).json({ message: "User already exists" });
     }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = await Auth.create({
+      fullname,
+      username,
+      email,
+      phone,
+      password: hashedPassword,
+    });
+
+    // Create tokens
+    const accessToken = jwt.sign(
+      { id: user._id },
+      process.env.JWT_ACCESS_SECRET,
+      { expiresIn: "15m" }
+    );
+
+    const refreshToken = jwt.sign(
+      { id: user._id },
+      process.env.JWT_REFRESH_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.status(201).json({
+      success: true,
+      message: "Registration successful",
+      token: accessToken,
+      refreshToken,
+      user: {
+        id: user._id,
+        fullname: user.fullname,
+        email: user.email,
+        username: user.username,
+        phone: user.phone,
+      },
+    });
   } catch (error) {
-    console.error("Error during signup:", error);
-    next(error);
+    console.error("Signup error:", error);
+    res.status(500).json({ success: false, message: "Signup failed" });
   }
 };
 
@@ -137,51 +131,50 @@ export const signUp = async (req, res, next) => {
 //   }
 // };
 
-export const login = async (req, res, next) => {
+export const login = async (req, res) => {
   const { email, password, googleToken } = req.body;
-  console.log("Login Request Received:", { email, googleToken });
 
   try {
-    const user = await Auth.findOne({ email });
+    const user = await Auth.findOne({ email }).select("+password");
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    if (googleToken) {
-      const ticket = await oauth2Client.verifyIdToken({
-        idToken: googleToken,
-        audience: process.env.GOOGLE_CLIENT_ID,
-      });
-      const payload = ticket.getPayload();
-
-      if (user.googleId !== payload.sub) {
-        return res.status(401).json({ message: "Invalid Google token" });
-      }
-    } else {
+    if (!googleToken) {
       const isPasswordValid = await bcrypt.compare(password, user.password);
       if (!isPasswordValid) {
         return res.status(401).json({ message: "Invalid password" });
       }
     }
 
-    // const token = jwt.sign(
-    //   { userId: user._id, isAdmin: user.isAdmin },
-    //   process.env.JWT_SECRET,
-    //   { expiresIn: "1h" }
-    // );
-    const token = jwt.sign({ _id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "1h",
-    });
+    const token = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+
+    const refreshToken = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
 
     res.status(200).json({
-      accessToken: user.accessToken,
-      refreshToken: user.refreshToken,
+      success: true,
       token,
-      user,
+      refreshToken,
+      user: {
+        id: user._id,
+        fullname: user.fullname,
+        email: user.email,
+        username: user.username,
+        phone: user.phone,
+      },
     });
-  } catch (error) {
-    next(error);
+  } catch (err) {
+    console.error("Login error:", err);
+    res.status(500).json({ message: "Login failed" });
   }
 };
 

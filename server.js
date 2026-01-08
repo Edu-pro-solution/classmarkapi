@@ -18,7 +18,7 @@ import teRoute from "./routes/teRoute.js";
 import parentRoute from "./routes/parentRoute.js";
 import commonRoute from "./routes/commonRoute.js";
 import questionRoute from "./routes/questionRoute.js";
-import jambquestionRoute from "./routes/jambquestionRoute.js";
+import jambsubjectRoute from "./routes/jambsubjectRoute.js";
 import examRoute from "./routes/examRoute.js";
 import jambsubmitRoute from "./routes/jambsubmitRoute.js";
 import subRoute from "./routes/subRoute.js";
@@ -112,7 +112,7 @@ const commonRouterWithAuth = commonRoute(s3, authRoutes);
 const onScreen = onScreenRoute(s3);
 
 // Routes
-app.use("/api/", jambAuthRoute);
+app.use("/api/auth", jambAuthRoute);
 app.use("/api/", innovateRoute);
 
 app.use("/api/", OffRoutes);
@@ -138,7 +138,7 @@ app.use("/api/", teRoute);
 app.use("/api/", parentRoute);
 app.use("/api/", subRoute);
 app.use("/api/", questionRoute);
-app.use("/api/", jambquestionRoute);
+app.use("/api/jamb", jambsubjectRoute);
 app.use("/api/", examRoute);
 app.use("/api/", psyRoute);
 app.use("/api/", practicePqRoutes);
