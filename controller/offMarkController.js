@@ -415,7 +415,7 @@ export const getMarkbyStudent = async (req, res) => {
           (m) =>
             m.studentId.toString() === studentId &&
             (m.testscore !== 0 || m.examscore !== 0) &&
-            m.comment.trim() !== "" &&
+            m.comment?.trim() &&
             mark.examId &&
             m.subjectId
         )
@@ -468,7 +468,7 @@ export const getMarkbyStudentwithoutsession = async (req, res) => {
             (m) =>
               m.studentId.toString() === userId &&
               (m.testscore !== 0 || m.examscore !== 0) &&
-              m.comment.trim() !== "" &&
+             m.comment?.trim() &&
               mark.examId &&
               m.subjectId
           )
