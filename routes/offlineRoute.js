@@ -62,7 +62,8 @@ import {
   saveMark,
   updateMark,
   updateMarks,
-  getAllScoresForExamSession
+  getAllScoresForExamSession,
+  fixSubjectIds
 } from "../controller/offMarkController.js";
 
 const router = express.Router();
@@ -71,6 +72,11 @@ const router = express.Router();
 router.post("/offlineexam", submitExam);
 router.post("/addSessionToExamWithoutSession", addSessionToExamWithoutSession);
 router.post("/save-marks/:sessionId", saveMark);
+router.post(
+  "/fix-subject-ids/:sessionId/:examId", // optional if you require auth
+  fixSubjectIds
+);
+
 // Add the new route for getting scores
 router.get("/get-scores/:examName/:sessionId", getMark);
 
