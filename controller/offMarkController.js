@@ -155,6 +155,76 @@ import Subject from "../models/subModel.js";
 //     res.status(500).json({ message: "Server error" });
 //   }
 // };
+// export const saveMark = async (req, res) => {
+//   const { sessionId } = req.params;
+
+//   try {
+//     const { examId, subjectId, updates } = req.body;
+
+//     if (
+//       !mongoose.Types.ObjectId.isValid(sessionId) ||
+//       !mongoose.Types.ObjectId.isValid(subjectId)
+//     ) {
+//       return res.status(400).json({ message: "Invalid ID" });
+//     }
+
+//     const subjectObjectId = new mongoose.Types.ObjectId(subjectId);
+
+//     let markDoc = await Mark.findOne({ examId, session: sessionId });
+
+//     // FIRST SAVE
+//     if (!markDoc) {
+//       markDoc = new Mark({
+//         examId,
+//         session: sessionId,
+//         marks: updates.map(u => ({
+//           studentId: mongoose.Types.ObjectId(u.studentId),
+//           subjectId: subjectObjectId,
+//           testscore: u.testscore ?? 0,
+//           examscore: u.examscore ?? 0,
+//           marksObtained: (u.testscore ?? 0) + (u.examscore ?? 0),
+//           comment: u.comment ?? "",
+//         })),
+//       });
+//       await markDoc.save();
+//       return res.status(201).json({ message: "Saved", markDoc });
+//     }
+
+//     // UPDATE / INSERT
+//     for (const update of updates) {
+//       const studentObjectId = mongoose.Types.ObjectId(update.studentId);
+
+//       const existing = markDoc.marks.find(
+//         m =>
+//           m.studentId.toString() === studentObjectId.toString() &&
+//           m.subjectId.toString() === subjectObjectId.toString()
+//       );
+
+//       if (existing) {
+//         existing.testscore = update.testscore ?? 0;
+//         existing.examscore = update.examscore ?? 0;
+//         existing.marksObtained = existing.testscore + existing.examscore;
+//         existing.comment = update.comment ?? existing.comment;
+//       } else {
+//         markDoc.marks.push({
+//           studentId: studentObjectId,
+//           subjectId: subjectObjectId,
+//           testscore: update.testscore ?? 0,
+//           examscore: update.examscore ?? 0,
+//           marksObtained: (update.testscore ?? 0) + (update.examscore ?? 0),
+//           comment: update.comment ?? "",
+//         });
+//       }
+//     }
+
+//     await markDoc.save();
+
+//     res.json({ message: "Updated", markDoc });
+//   } catch (err) {
+//     console.error("❌ Error saving marks:", err);
+//     res.status(500).json({ message: "Server error" });
+//   }
+// };
 export const saveMark = async (req, res) => {
   const { sessionId } = req.params;
 
@@ -170,9 +240,10 @@ export const saveMark = async (req, res) => {
 
     const subjectObjectId = new mongoose.Types.ObjectId(subjectId);
 
+    // Fetch existing mark document
     let markDoc = await Mark.findOne({ examId, session: sessionId });
 
-    // FIRST SAVE
+    // If no document exists, create a new one
     if (!markDoc) {
       markDoc = new Mark({
         examId,
@@ -180,17 +251,19 @@ export const saveMark = async (req, res) => {
         marks: updates.map(u => ({
           studentId: mongoose.Types.ObjectId(u.studentId),
           subjectId: subjectObjectId,
-          testscore: u.testscore ?? 0,
-          examscore: u.examscore ?? 0,
-          marksObtained: (u.testscore ?? 0) + (u.examscore ?? 0),
-          comment: u.comment ?? "",
+          testscore: u.testscore !== undefined ? u.testscore : 0,
+          examscore: u.examscore !== undefined ? u.examscore : 0,
+          marksObtained:
+            (u.testscore !== undefined ? u.testscore : 0) +
+            (u.examscore !== undefined ? u.examscore : 0),
+          comment: u.comment || "",
         })),
       });
       await markDoc.save();
       return res.status(201).json({ message: "Saved", markDoc });
     }
 
-    // UPDATE / INSERT
+    // Update existing marks or insert new ones
     for (const update of updates) {
       const studentObjectId = mongoose.Types.ObjectId(update.studentId);
 
@@ -201,18 +274,25 @@ export const saveMark = async (req, res) => {
       );
 
       if (existing) {
-        existing.testscore = update.testscore ?? 0;
-        existing.examscore = update.examscore ?? 0;
-        existing.marksObtained = existing.testscore + existing.examscore;
-        existing.comment = update.comment ?? existing.comment;
+        // Only update fields if values are provided
+        if (update.testscore !== undefined) existing.testscore = update.testscore;
+        if (update.examscore !== undefined) existing.examscore = update.examscore;
+        if (update.comment !== undefined) existing.comment = update.comment;
+
+        // Recalculate total safely
+        existing.marksObtained =
+          (existing.testscore || 0) + (existing.examscore || 0);
       } else {
+        // Insert new mark only with values or default 0 if new
         markDoc.marks.push({
           studentId: studentObjectId,
           subjectId: subjectObjectId,
-          testscore: update.testscore ?? 0,
-          examscore: update.examscore ?? 0,
-          marksObtained: (update.testscore ?? 0) + (update.examscore ?? 0),
-          comment: update.comment ?? "",
+          testscore: update.testscore !== undefined ? update.testscore : 0,
+          examscore: update.examscore !== undefined ? update.examscore : 0,
+          marksObtained:
+            (update.testscore !== undefined ? update.testscore : 0) +
+            (update.examscore !== undefined ? update.examscore : 0),
+          comment: update.comment || "",
         });
       }
     }
@@ -412,18 +492,23 @@ export const getScores = async (req, res) => {
 
     const subjectObjectId = new mongoose.Types.ObjectId(subjectId);
 
-    const markDoc = await Mark.findOne({
+    // ✅ 1. Fetch ALL Mark documents for this exam + session
+    const markDocs = await Mark.find({
       examId,
       session: sessionId,
     })
       .populate("marks.studentId", "studentName AdmNo")
       .lean();
 
-    if (!markDoc) {
+    if (!markDocs.length) {
       return res.json({ scores: [] });
     }
 
-    const scores = markDoc.marks.filter(
+    // ✅ 2. Merge ALL marks from ALL documents
+    const allMarks = markDocs.flatMap(doc => doc.marks);
+
+    // ✅ 3. Filter by subject
+    const scores = allMarks.filter(
       m => m.subjectId.toString() === subjectObjectId.toString()
     );
 
@@ -431,10 +516,11 @@ export const getScores = async (req, res) => {
 
     res.json({ scores });
   } catch (err) {
-    console.error(err);
+    console.error("❌ Error fetching scores:", err);
     res.status(500).json({ message: "Server error" });
   }
 };
+
 
 
 
