@@ -13,17 +13,26 @@ const generateToken = (userId) => {
 
 export const register = async (req, res) => {
   try {
-    const { username, email, password } = req.body;
+    const { username, email, password, role, referralCode } = req.body;
 
-    // Validate required fields
-    if (!username || !email || !password) {
+    // ── Validate required fields ──────────────────────────────────────────────
+    if (!username || !email || !password || !role) {
       return res.status(400).json({
         success: false,
-        message: "Username, email, and password are required.",
+        message: "Username, email, password, and role are required.",
       });
     }
 
-    // Check if email already exists
+    // ── Validate role ─────────────────────────────────────────────────────────
+    const VALID_ROLES = ["academic", "student", "researcher", "institution", "professional"];
+    if (!VALID_ROLES.includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid role. Must be one of: ${VALID_ROLES.join(", ")}.`,
+      });
+    }
+
+    // ── Check duplicate email ─────────────────────────────────────────────────
     const existingEmail = await SchUser.findOne({ email: email.toLowerCase() });
     if (existingEmail) {
       return res.status(409).json({
@@ -32,7 +41,7 @@ export const register = async (req, res) => {
       });
     }
 
-    // Check if username already exists
+    // ── Check duplicate username ──────────────────────────────────────────────
     const existingUsername = await SchUser.findOne({ username });
     if (existingUsername) {
       return res.status(409).json({
@@ -41,10 +50,34 @@ export const register = async (req, res) => {
       });
     }
 
-    // Create user (password hashed via pre-save hook in model)
-    const user = await SchUser.create({ username, email, password });
+    // ── Resolve referral code (optional) ──────────────────────────────────────
+    let referredBy = null;
+    if (referralCode && referralCode.trim() !== "") {
+      const referrer = await SchUser.findOne({
+        myReferralCode: referralCode.trim().toUpperCase(),
+      });
 
-    // Generate token
+      if (!referrer) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid referral code. Please check and try again.",
+        });
+      }
+
+      referredBy = referrer._id;
+    }
+
+    // ── Create user ───────────────────────────────────────────────────────────
+    const user = await SchUser.create({
+      username,
+      email,
+      password,
+      role,
+      referralCode: referralCode?.trim().toUpperCase() || null,
+      referredBy,
+    });
+
+    // ── Generate token ────────────────────────────────────────────────────────
     const token = generateToken(user._id);
 
     return res.status(201).json({
@@ -56,13 +89,15 @@ export const register = async (req, res) => {
         username: user.username,
         email: user.email,
         role: user.role,
+        myReferralCode: user.myReferralCode,
+        referredBy: user.referredBy || null,
         createdAt: user.createdAt,
       },
     });
   } catch (error) {
     console.error("Register error:", error);
 
-    // Mongoose duplicate key error
+    // Mongoose duplicate key
     if (error.code === 11000) {
       const field = Object.keys(error.keyValue)[0];
       return res.status(409).json({
@@ -101,7 +136,7 @@ export const login = async (req, res) => {
       });
     }
 
-    // Find user and explicitly include password (select: false in schema)
+    // Find user and include password
     const user = await SchUser.findOne({ email: email.toLowerCase() }).select("+password");
 
     if (!user) {
@@ -132,6 +167,7 @@ export const login = async (req, res) => {
         username: user.username,
         email: user.email,
         role: user.role,
+        myReferralCode: user.myReferralCode,
         createdAt: user.createdAt,
       },
     });
