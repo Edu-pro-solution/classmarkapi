@@ -223,7 +223,9 @@ export const getUserByRole = async (req, res) => {
 
 export const login = async (req, res) => {
   const { identifier, password } = req.body;
-
+  console.log("Request body:", req.body);  // ADD THIS
+  console.log("Headers:", req.headers);    // ADD THIS
+  
   try {
     // Find the user by email or username
     const user = await User.findOne({

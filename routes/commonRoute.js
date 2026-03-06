@@ -40,7 +40,14 @@ import {
   getBookById,
 } from "../controller/bookController.js";
 import authenticateUser from "../middleware/authMiddleware.js";
-const router = express.Router();
+
+
+// Modify the commonRoute function to accept the S3 instance and authRoutes
+const commonRoute = (s3, authRoutes = []) => {
+  const router = express.Router();
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
+
 
 // Utility function to apply middleware
 const applyAuthMiddleware = (method, path, middleware) => {
@@ -48,11 +55,6 @@ const applyAuthMiddleware = (method, path, middleware) => {
     router[method](path, middleware);
   }
 };
-
-// Modify the commonRoute function to accept the S3 instance and authRoutes
-const commonRoute = (s3, authRoutes = []) => {
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = dirname(__filename);
 
   const upload = multer({
     storage: multerS3({

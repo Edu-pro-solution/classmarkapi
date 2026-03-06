@@ -123,7 +123,7 @@ app.use("/api/", OffRoutes);
 app.use("/api/", receiptRoute);
 // Fix old marks with string subjectIds
 
-
+app.use("/api", commonRouterWithAuth);
 app.use("/api/", receiptRoute);
 app.use("/api/", schRoute);
 app.use("/api/", aiRoute);
@@ -134,7 +134,7 @@ app.use("/api/divine", FibroidRoute);
 app.use("/api/", classRoute);
 app.use("/api/sessions", sessionRoute);
 app.use("/api/onScreen", onScreen);
-app.use("/api", commonRouterWithAuth);
+
 app.use("/api/student/:className/:sessionId", getStudentsByClass);
 app.use("/api/", gradeRoute);
 app.use("/api/", catRoute);
