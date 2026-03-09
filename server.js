@@ -135,7 +135,7 @@ app.use("/api/divine", FibroidRoute);
 app.use("/api/", classRoute);
 app.use("/api/sessions", sessionRoute);
 app.use("/api/onScreen", onScreen);
-app.use("/api/", schPaymentRoute);
+app.use("/api", schPaymentRoute);
 
 app.use("/api/student/:className/:sessionId", getStudentsByClass);
 app.use("/api/", gradeRoute);

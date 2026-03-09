@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-import Auth from "../models/authModel.js";
+import SchUser from "../models/schModel.js";
 
 export const protect = async (req, res, next) => {
   let token;
@@ -23,7 +23,7 @@ export const protect = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     console.log("Decoded Token:", decoded);
 
-    const user = await Auth.findById(decoded._id).select("-password");
+    const user = await SchUser.findById(decoded._id).select("-password");
     if (!user) {
       console.log("User not found in the database.");
       return res
