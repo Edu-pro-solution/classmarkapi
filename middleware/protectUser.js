@@ -23,7 +23,7 @@ export const protect = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     console.log("Decoded Token:", decoded);
 
-    const user = await SchUser.findById(decoded._id).select("-password");
+const user = await SchUser.findById(decoded.id).select("-password");
     if (!user) {
       console.log("User not found in the database.");
       return res
