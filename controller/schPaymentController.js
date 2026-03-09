@@ -4,7 +4,7 @@ import { SchPayment } from "../models/schPaymentModel.js" // ✅
 import { Payment }    from "../models/schPaymentModel.js" // ✅ also works
 
 const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY; // set in .env
-const ARTICLE_PRICE_USD = 9.99;
+const ARTICLE_PRICE_NGN = 9.99;
 
 // ─── Helper: generate unique reference ───────────────────────────────────────
 
