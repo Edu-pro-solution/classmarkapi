@@ -23,6 +23,7 @@ const bookSchema = new mongoose.Schema({
   Download: {
     type: String,
   },
+  AddModel
   imageUrl: {
     type: "string",
   },

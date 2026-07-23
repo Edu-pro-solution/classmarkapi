@@ -27,6 +27,7 @@ import psyRoute from "./routes/psyRoute.js";
 import receiptRoute from "./routes/receiptRoute.js";
 import onScreenRoute from "./routes/onScreenRoute.js";
 import innovateRoute from "./routes/innovateRoute.js";
+import bootcampRoute from "./routes/bootcampRoute.js";
 import noticeRoute from "./routes/noticeRoute.js";
 import sessionRoute from "./routes/sessionRoute.js";
 
@@ -111,7 +112,7 @@ const onScreen = onScreenRoute(s3);
 // Routes
 app.use("/api/", jambAuthRoute);
 app.use("/api/", innovateRoute);
-
+app.use("/api/", bootcampRoute); // add this line
 app.use("/api/", OffRoutes);
 
 app.use("/api/", receiptRoute);
