@@ -7,9 +7,11 @@ import jambAuthRoute from "./routes/jambAuthRoute.js";
 import adRoutes from "./routes/adRoutes.js";
 import aiRoute from "./routes/aiRoute.js";
 import examlistRoute from "./routes/examlistRoute.js";
+import attendanceRoute from "./routes/attendanceRoute.js";
 import jambRoute from "./routes/jambRoute.js";
 import gradeRoute from "./routes/gradeRoute.js";
 import catRoute from "./routes/catRoute.js";
+import homeworkRoute from "./routes/homeworkRoute.js";
 import stuRoute from "./routes/stuRoute.js";
 import FibroidRoute from "./routes/FibroidRoute.js";
 import teRoute from "./routes/teRoute.js";
@@ -52,7 +54,7 @@ const s3 = new S3({
 const corsOptions = {
   origin: [
     "http://localhost:3001",
-    "http://localhost:8080",
+    "http://localhost:8081",
     "http://localhost:3002",
     "https://hlhs.edupro.com.ng",
     "https://cbt.edupro.com.ng",
@@ -87,6 +89,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api/", offlineRoute);
+app.use("/api/", attendanceRoute);
+app.use("/api/", homeworkRoute);
 app.use("/api/ad", adRoutes);
 
 app.use("/api/ad", adRoutes);
