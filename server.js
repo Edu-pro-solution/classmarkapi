@@ -90,7 +90,7 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/api/", offlineRoute);
 app.use("/api/", attendanceRoute);
-app.use("/api/", homeworkRoute);
+
 app.use("/api/ad", adRoutes);
 
 app.use("/api/ad", adRoutes);
@@ -112,7 +112,7 @@ const authRoutes = [
 
 const commonRouterWithAuth = commonRoute(s3, authRoutes);
 const onScreen = onScreenRoute(s3);
-
+app.use("/api/homework", homeworkRoute(s3));
 // Routes
 app.use("/api/", jambAuthRoute);
 app.use("/api/", innovateRoute);

@@ -19,7 +19,7 @@ export default function homeworkRoute(s3) {
   router.get("/submissions", authenticateUser, getHomeworkSubmissions);
 
   router.post(
-    "/homework/submissions",
+    "/submissions",
     authenticateUser,
     upload.single("attachment"),
     createHomeworkSubmission(s3)
