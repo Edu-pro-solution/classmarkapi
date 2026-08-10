@@ -9,6 +9,7 @@ import aiRoute from "./routes/aiRoute.js";
 import examlistRoute from "./routes/examlistRoute.js";
 import attendanceRoute from "./routes/attendanceRoute.js";
 import jambRoute from "./routes/jambRoute.js";
+import elearningRoute from "./routes/elearningRoute.js";
 import gradeRoute from "./routes/gradeRoute.js";
 import catRoute from "./routes/catRoute.js";
 import homeworkRoute from "./routes/homeworkRoute.js";
@@ -116,6 +117,7 @@ app.use("/api/homework", homeworkRoute(s3));
 // Routes
 app.use("/api/", jambAuthRoute);
 app.use("/api/", innovateRoute);
+app.use("/api/elearning", elearningRoute(s3));
 app.use("/api/", bootcampRoute); // add this line
 app.use("/api/", OffRoutes);
 
