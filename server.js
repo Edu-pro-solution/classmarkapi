@@ -56,6 +56,8 @@ const corsOptions = {
   origin: [
     "http://localhost:3001",
     "http://localhost:8081",
+    "http://localhost:8080",
+    "http://localhost:5174",
     "http://localhost:3002",
     "https://hlhs.edupro.com.ng",
     "https://cbt.edupro.com.ng",

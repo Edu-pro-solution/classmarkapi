@@ -8,7 +8,7 @@ const getUserId = (req) => req.user?._id || req.user?.id;
 // Courses
 // ─────────────────────────────────────────────────────────────────────────
 
-// POST /api/elearning/courses
+// POST /api/elearning/courses (multipart/form-data, optional "thumbnail" file)
 // Teachers/admins create a course.
 export const createCourse = async (req, res) => {
   try {
@@ -31,6 +31,7 @@ export const createCourse = async (req, res) => {
       department,
       teacher: teacherId,
       session,
+      thumbnailUrl: req.file ? req.file.location : undefined,
     });
 
     res.status(201).json(course);
@@ -41,9 +42,10 @@ export const createCourse = async (req, res) => {
 };
 
 // GET /api/elearning/courses?sessionId=...&mine=true
-// - Everyone: browse courses for a session.
-// - Teachers/admins: pass mine=true to see only courses they created.
-// - Students: each course comes back tagged with isEnrolled.
+// Intentionally NOT behind authenticateUser — browsing the course catalog is public,
+// so a visitor who isn't logged in yet can still see what's on offer.
+// - Teachers/admins: pass mine=true (requires being logged in) to see only their own courses.
+// - Students: each course comes back tagged with isEnrolled (only meaningful if logged in).
 export const listCourses = async (req, res) => {
   try {
     const userId = getUserId(req);
@@ -77,6 +79,38 @@ export const listCourses = async (req, res) => {
   } catch (error) {
     console.error("listCourses error:", error);
     res.status(500).json({ message: "Failed to load courses." });
+  }
+};
+
+// GET /api/elearning/courses/:id
+// Single course detail — also public, same reasoning as listCourses.
+export const getCourse = async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    const role = req.user?.role;
+    const { id } = req.params;
+
+    const course = await Course.findById(id).populate(
+      "teacher",
+      "username studentName subjectTaught"
+    );
+    if (!course) {
+      return res.status(404).json({ message: "Course not found." });
+    }
+
+    let isEnrolled = false;
+    if (role === "student") {
+      isEnrolled = Boolean(await Enrollment.exists({ student: userId, course: id }));
+    }
+
+    const obj = course.toObject();
+    obj.teacherName = course.teacher?.username || course.teacher?.studentName || "Unknown";
+    obj.isEnrolled = isEnrolled;
+
+    res.json(obj);
+  } catch (error) {
+    console.error("getCourse error:", error);
+    res.status(500).json({ message: "Failed to load course." });
   }
 };
 

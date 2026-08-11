@@ -15,6 +15,9 @@ const courseSchema = new mongoose.Schema(
     department: {
       type: String,
     },
+    thumbnailUrl: {
+      type: String, // optional cover image, uploaded to S3
+    },
     teacher: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
