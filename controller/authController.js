@@ -752,20 +752,93 @@ export const deleteUserFromSpecificSession = async (req, res) => {
 //   }
 // };
 
+// export const createSetting = async (req, res) => {
+//   try {
+//     // Log incoming request body
+//     console.log("Incoming request body:", req.body);
+
+//     const { name, principalName, resumptionDate, examName, session } = req.body;
+
+//     // Validate if the examName exists in the Exam collection
+//     console.log("Checking if examName exists in Exam collection:", examName);
+
+//     // Convert the examName (which is a string) to an ObjectId
+//     const examId = mongoose.Types.ObjectId(examName);
+
+//     // Find the exam by _id (which is the examName passed as a string)
+//     const exam = await Exam.findOne({ _id: examId });
+
+//     if (!exam) {
+//       console.log("Exam not found:", examName);
+//       return res
+//         .status(400)
+//         .json({ success: false, message: "Exam not found" });
+//     }
+
+//     // Look for an existing setting with the specified session and examId
+//     console.log(
+//       "Looking for existing setting for session:",
+//       session,
+//       "and examId:",
+//       exam._id
+//     );
+//     let school = await Setting.findOne({ session, exam: exam._id });
+
+//     if (!school) {
+//       console.log("No existing setting found. Creating a new setting.");
+//       // If no setting exists for the session and exam, create a new one
+//       school = new Setting();
+//     }
+
+//     // Log the state of the school object before updating
+//     console.log("Current school object:", school);
+
+//     // Update fields
+//     school.name = name;
+//     school.principalName = principalName;
+//     school.resumptionDate = resumptionDate;
+//     school.session = session;
+//     school.exam = exam._id; // Use the _id of the exam found
+
+//     // Handle file upload if a signature file is provided
+//     if (req.file) {
+//       console.log("File uploaded. Updating signature.");
+//       school.signature = req.file.location; // Use S3 location URL for signature
+//       school.markModified("signature"); // Explicitly mark the signature as modified
+//     }
+
+//     // Log the school object before saving
+//     console.log("Before saving school object:", school);
+
+//     // Save the document
+//     await school.save();
+//     console.log("After saving school object:", school);
+
+//     // Send a response
+//     res.status(200).json({
+//       success: true,
+//       message: school.isNew
+//         ? "School profile created successfully"
+//         : "School profile updated successfully",
+//     });
+//   } catch (error) {
+//     // Log the error with detailed context
+//     console.error("Error updating school profile:", error.message);
+//     console.error("Stack trace:", error.stack);
+//     res.status(500).json({ success: false, message: "Internal server error" });
+//   }
+// };
+
 export const createSetting = async (req, res) => {
   try {
-    // Log incoming request body
     console.log("Incoming request body:", req.body);
 
     const { name, principalName, resumptionDate, examName, session } = req.body;
 
-    // Validate if the examName exists in the Exam collection
     console.log("Checking if examName exists in Exam collection:", examName);
 
-    // Convert the examName (which is a string) to an ObjectId
-    const examId = mongoose.Types.ObjectId(examName);
+    const examId = new mongoose.Types.ObjectId(examName); // also fixed: needs `new`
 
-    // Find the exam by _id (which is the examName passed as a string)
     const exam = await Exam.findOne({ _id: examId });
 
     if (!exam) {
@@ -775,7 +848,15 @@ export const createSetting = async (req, res) => {
         .json({ success: false, message: "Exam not found" });
     }
 
-    // Look for an existing setting with the specified session and examId
+    // ── ADD THIS: derive the term label from the exam name ──
+    const examNameLower = exam.name.toLowerCase();
+    const termLabel = examNameLower.includes("first")
+      ? "FIRST TERM"
+      : examNameLower.includes("second")
+      ? "SECOND TERM"
+      : "THIRD TERM";
+    // ──────────────────────────────────────────────────────
+
     console.log(
       "Looking for existing setting for session:",
       session,
@@ -786,11 +867,9 @@ export const createSetting = async (req, res) => {
 
     if (!school) {
       console.log("No existing setting found. Creating a new setting.");
-      // If no setting exists for the session and exam, create a new one
       school = new Setting();
     }
 
-    // Log the state of the school object before updating
     console.log("Current school object:", school);
 
     // Update fields
@@ -798,23 +877,20 @@ export const createSetting = async (req, res) => {
     school.principalName = principalName;
     school.resumptionDate = resumptionDate;
     school.session = session;
-    school.exam = exam._id; // Use the _id of the exam found
-
-    // Handle file upload if a signature file is provided
+    school.exam = exam._id;
+    school.term = termLabel; // ← ADD THIS TOO, so the report card can query by term
+console.log("req.file received:", req.file);
     if (req.file) {
       console.log("File uploaded. Updating signature.");
-      school.signature = req.file.location; // Use S3 location URL for signature
-      school.markModified("signature"); // Explicitly mark the signature as modified
+      school.signature = req.file.location;
+      school.markModified("signature");
     }
 
-    // Log the school object before saving
     console.log("Before saving school object:", school);
 
-    // Save the document
     await school.save();
     console.log("After saving school object:", school);
 
-    // Send a response
     res.status(200).json({
       success: true,
       message: school.isNew
@@ -822,13 +898,11 @@ export const createSetting = async (req, res) => {
         : "School profile updated successfully",
     });
   } catch (error) {
-    // Log the error with detailed context
     console.error("Error updating school profile:", error.message);
     console.error("Stack trace:", error.stack);
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
-
 // export const getSetting = async (req, res) => {
 //   try {
 //     const { sessionId, term } = req.query;
@@ -935,8 +1009,12 @@ export const getSetting = async (req, res) => {
     }
 
     // Find the exam by term (exam name)
-    const exam = await Exam.findOne({ name: term, session: sessionId });
-
+    // const exam = await Exam.findOne({ name: term, session: sessionId });
+// getSetting
+const exam = await Exam.findOne({
+  name: { $regex: `^${term}$`, $options: "i" },
+  session: sessionId,
+});
     if (!exam) {
       console.log("Exam not found:", term);
       return res.status(404).json({
