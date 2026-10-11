@@ -59,6 +59,24 @@ const userSchema = new mongoose.Schema(
     },
 
     session: [{ type: mongoose.Schema.Types.ObjectId, ref: "Session" }],
+     enrollments: [
+      {
+        _id: false,
+        session: { type: mongoose.Schema.Types.ObjectId, ref: "Session" },
+        classname: String,
+      },
+    ],
+
+    promotionHistory: [
+      {
+        _id: false,
+        fromClass: String,
+        toClass: String,
+        fromSession: { type: mongoose.Schema.Types.ObjectId, ref: "Session" },
+        toSession: { type: mongoose.Schema.Types.ObjectId, ref: "Session" },
+        promotedAt: Date,
+      },
+    ],
   },
   { timestamps: true }
 );

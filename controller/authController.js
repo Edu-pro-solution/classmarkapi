@@ -111,6 +111,9 @@ export const register = async (req, res) => {
       ...userData,
       password: hashedPassword,
       session: sessionId,
+           ...(role === "student" && {
+    enrollments: [{ session: sessionId, classname: userData.classname }],
+  }),
     });
 
     await user.save();
@@ -1657,30 +1660,63 @@ export const getTeacherById = async (req, res) => {
 //   }
 // };
 
+// export const getStudentsByClass = async (req, res) => {
+//   const { className, sessionId } = req.params;
+
+//   try {
+//     // Convert sessionId to ObjectId
+//     const sessionObjectId = mongoose.Types.ObjectId(sessionId);
+
+//     const students = await User.find({
+//       role: "student",
+//       classname: className,
+//       session: sessionObjectId, // Add session filter here
+//     })
+//       .select("AdmNo studentName address phone email parentsName classname _id")
+//       .exec();
+
+//     console.log("Backend Response:", students); // Add this line
+
+//     if (students.length === 0) {
+//       return res
+//         .status(404)
+//         .json({ error: "No students found in that class and session" });
+//     }
+
+//     return res.status(200).json(students);
+//   } catch (error) {
+//     console.error("Error fetching students:", error);
+//     return res.status(500).json({ error: "Failed to get students" });
+//   }
+// };
+const studentsInClass = (sessionId, className) => ({
+  role: "student",
+  $or: [
+    // New way: enrollment record for that session
+    { enrollments: { $elemMatch: { session: sessionId, classname: className } } },
+    // Legacy students with no enrollment for that session
+    {
+      session: sessionId,
+      enrollments: { $not: { $elemMatch: { session: sessionId } } },
+      classname: className,
+    },
+  ],
+});
 export const getStudentsByClass = async (req, res) => {
   const { className, sessionId } = req.params;
-
   try {
-    // Convert sessionId to ObjectId
     const sessionObjectId = mongoose.Types.ObjectId(sessionId);
 
-    const students = await User.find({
-      role: "student",
-      classname: className,
-      session: sessionObjectId, // Add session filter here
-    })
+    const students = await User.find(studentsInClass(sessionObjectId, className))
       .select("AdmNo studentName address phone email parentsName classname _id")
-      .exec();
-
-    console.log("Backend Response:", students); // Add this line
+      .lean();
 
     if (students.length === 0) {
-      return res
-        .status(404)
-        .json({ error: "No students found in that class and session" });
+      return res.status(404).json({ error: "No students found in that class and session" });
     }
 
-    return res.status(200).json(students);
+    // Report the class as it was in THAT session
+    return res.status(200).json(students.map((s) => ({ ...s, classname: className })));
   } catch (error) {
     console.error("Error fetching students:", error);
     return res.status(500).json({ error: "Failed to get students" });
@@ -1935,53 +1971,100 @@ export const addAnotherSessionToUserWithSession = async (req, res) => {
 };
 export const promoteStudents = async (req, res) => {
   try {
-    const { fromSessionId, toSessionId, classPromotions } = req.body;
+    const { fromSessionId, toSessionId, classPromotions, dryRun = false } = req.body;
 
-    // Validate sessions
-    const fromSession = await Session.findById(fromSessionId);
-    const toSession = await Session.findById(toSessionId);
+    if (!fromSessionId || !toSessionId || !classPromotions) {
+      return res.status(400).json({
+        error: "fromSessionId, toSessionId and classPromotions are required",
+      });
+    }
+    if (String(fromSessionId) === String(toSessionId)) {
+      return res.status(400).json({ error: "Sessions must be different" });
+    }
+    if (
+      !mongoose.Types.ObjectId.isValid(fromSessionId) ||
+      !mongoose.Types.ObjectId.isValid(toSessionId)
+    ) {
+      return res.status(400).json({ error: "Invalid session ID(s)" });
+    }
+
+    const [fromSession, toSession] = await Promise.all([
+      Session.findById(fromSessionId),
+      Session.findById(toSessionId),
+    ]);
     if (!fromSession || !toSession) {
       return res.status(400).json({ error: "Invalid session ID(s)" });
     }
 
-    // Find all students in the fromSession
-    const students = await User.find({ session: fromSessionId });
-    if (students.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "No students found in the provided session." });
-    }
+    // Students in the old session who are NOT already in the new one.
+    // This is what makes it safe to click twice.
+    const students = await User.find({
+      role: "student",
+      session: { $in: [fromSessionId], $nin: [toSessionId] },
+    });
 
-    let promotedCount = 0;
+    const ops = [];
+    const preview = [];
+    const skipped = [];
 
-    for (const student of students) {
-      const currentClassName = student.classname;
+    for (const s of students) {
+      // The class the student had IN the old session
+      const fromEnrollment = (s.enrollments || []).find(
+        (e) => String(e.session) === String(fromSessionId)
+      );
+      const currentClass = fromEnrollment?.classname ?? s.classname;
+      const nextClass = classPromotions[currentClass];
 
-      // Get next class name based on promotion mapping
-      const nextClassName = classPromotions[currentClassName];
-      if (!nextClassName) continue; // Skip if no mapping found
+      if (!nextClass) {
+        skipped.push({ id: s._id, name: s.studentName, classname: currentClass });
+        continue;
+      }
 
-      // Keep promotion history
-      if (!student.promotionHistory) student.promotionHistory = [];
-      student.promotionHistory.push({
-        fromClass: currentClassName,
-        toClass: nextClassName,
-        fromSession: fromSessionId,
-        toSession: toSessionId,
-        promotedAt: new Date(),
+      preview.push({ id: s._id, name: s.studentName, from: currentClass, to: nextClass });
+
+      // Backfill the old-session record for students created before enrollments existed
+      const newEntries = [];
+      if (!fromEnrollment) newEntries.push({ session: fromSessionId, classname: currentClass });
+      newEntries.push({ session: toSessionId, classname: nextClass });
+
+      ops.push({
+        updateOne: {
+          filter: { _id: s._id },
+          update: {
+            $addToSet: { session: toSessionId }, // keep the old session, add the new one
+            $set: { classname: nextClass },      // "current" class
+            $push: {
+              enrollments: { $each: newEntries },
+              promotionHistory: {
+                fromClass: currentClass,
+                toClass: nextClass,
+                fromSession: fromSessionId,
+                toSession: toSessionId,
+                promotedAt: new Date(),
+              },
+            },
+          },
+        },
       });
-
-      // Update class and session
-      student.classname = nextClassName;
-      student.session = toSessionId;
-
-      await student.save();
-      promotedCount++;
     }
 
-    res.status(200).json({
+    if (dryRun) {
+      return res.status(200).json({
+        dryRun: true,
+        willPromote: preview.length,
+        skippedCount: skipped.length,
+        preview,
+        skipped,
+      });
+    }
+
+    if (ops.length) await User.bulkWrite(ops);
+
+    return res.status(200).json({
       success: true,
-      message: `${promotedCount} students promoted from ${fromSession.name} to ${toSession.name}.`,
+      promoted: ops.length,
+      skipped,
+      message: `${ops.length} students promoted from ${fromSession.name} to ${toSession.name}.`,
     });
   } catch (error) {
     console.error("Promotion Error:", error);
